@@ -1,0 +1,49 @@
+#配置域名：
+domainRoot="kuailepai.com.cn"
+domainSite="mall.$domainRoot"
+pathRoot="/data/wwwroot/${domainSite}/basic/web/"
+
+
+#安装 Composer
+curl -sS https://getcomposer.org/installer | php
+mv composer.phar /usr/local/bin/composer
+
+#升级 Composer
+composer self-update
+
+cd /data/wwwroot/$domainSite/
+#安装 Yii2 (如果无法下载，先海外机下载，再拷贝到国内机)
+composer create-project --prefer-dist yiisoft/yii2-app-basic basic
+
+#申请ssl证书 https://www.runoob.com/http/ssl-certbot.html
+yum install epel-release -y
+yum install certbot -y
+#查看 certbot 安装的版本
+certbot --version
+#首次申请证书：注意输入邮箱、解析验证域名
+certbot certonly  -d *.$domainRoot --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory 
+#检测解析 nslookup -type=txt _acme-challenge.kuailepai.com.cn
+#申请成功：
+#/etc/letsencrypt/live/kuailepai.com.cn/fullchain.pem
+#/etc/letsencrypt/live/kuailepai.com.cn/privkey.pem
+
+#续签直接1个命令搞定了:
+certbot renew 
+
+
+##配置nginx
+git clone https://github.com/bigbigchen/deploy.git
+cp deploy/nginx/yii443.conf /etc/nginx/conf.d/${domainSite}443.conf
+ls /etc/nginx/conf.d/${domainSite}443.conf
+sed -i "s/server_name_value/$domainSite/" /etc/nginx/conf.d/${domainSite}443.conf
+sed -i "s/root_value/$(echo $pathRoot|sed "s/\//\\\\\//g")/" /etc/nginx/conf.d/${domain_site}443.conf
+cp /etc/letsencrypt/live/$domainRoot/fullchain.pem /etc/nginx/conf.d/cert/$domainRoot.crt
+cp /etc/letsencrypt/live/$domainRoot/privkey.pem /etc/nginx/conf.d/cert/$domainRoot.key
+ln -s /etc/nginx/conf.d/cert/${domainRoot}.crt /etc/nginx/conf.d/cert/${domainSite}.crt 
+ln -s /etc/nginx/conf.d/cert/${domainRoot}.key /etc/nginx/conf.d/cert/${domainSite}.key
+
+
+#解析域名、reloadnginx
+
+
+
